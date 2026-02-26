@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爆速ダイエットログ</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        canvas { max-width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🔥 体重ログ</h2>
+        <input type="number" id="weight" placeholder="今の体重 (kg)" step="0.1">
+        <button onclick="saveData()">記録する</button>
+    </div>
+    <div class="card">
+        <canvas id="weightChart"></canvas>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        function saveData() {
+            const weight = document.getElementById('weight').value;
+            if (!weight) return;
+            const data = JSON.parse(localStorage.getItem('diet_logs') || '[]');
+            data.push({ date: new Date().toLocaleDateString(), weight: parseFloat(weight) });
+            localStorage.setItem('diet_logs', JSON.stringify(data));
+            location.reload();
+        }
+
+        const logs = JSON.parse(localStorage.getItem('diet_logs') || '[]');
+        const ctx = document.getElementById('weightChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: logs.map(l => l.date),
+                datasets: [{ label: '体重 (kg)', data: logs.map(l => l.weight), borderColor: '#4CAF50', tension: 0.1 }]
+            }
+        });
+    </script>
+</body>
+</html>
