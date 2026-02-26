@@ -3,50 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>爆速ダイエットログ</title>
+    <title>みんなのダイエット掲示板</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        canvas { max-width: 100%; margin-top: 20px; }
+        body { font-family: 'Helvetica Neue', sans-serif; background: #fdfdfd; padding: 20px; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }
+        input { width: 80%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
+        button { background: #ff6b6b; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #ee5253; }
+        .log-item { text-align: left; padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .name { font-weight: bold; color: #ff6b6b; }
+        .avatar { font-size: 24px; }
     </style>
 </head>
 <body>
+
     <div class="card">
-        <h2>🔥 体重ログ</h2>
+        <h2>🔥 みんなでダイエット！</h2>
+        <div id="my-avatar" class="avatar">🥚</div>
+        <p>あなたの記録が全員に共有されます</p>
+        <input type="text" id="userName" placeholder="あなたの名前">
         <input type="number" id="weight" placeholder="今の体重 (kg)" step="0.1">
-        <button onclick="saveData()">記録する</button>
-    </div>
-    <div class="card">
-        <canvas id="weightChart"></canvas>
+        <button id="sendBtn">世界に共有する</button>
     </div>
 
-    <script>
+    <div class="card">
+        <h3>📢 最近のタイムライン</h3>
+        <div id="log-list">読み込み中...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } 
+        from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 翔さんの Firebase 設定（鍵）
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWRI9DTsqor75SwsRhjYN4B6tzMeDXF-8",
+            authDomain: "diet-share-app.firebaseapp.com",
+            projectId: "diet-share-app",
+            storageBucket: "diet-share-app.firebasestorage.app",
+            messagingSenderId: "677450969370",
+            appId: "1:677450969370:web:5113a194a73ad01fd23ca3",
+            measurementId: "G-0EF4HPEGRK"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 1. データを送信する魔法
+        document.getElementById('sendBtn').onclick = async () => {
+            const name = document.getElementById('userName').value;
+            const weight = document.getElementById('weight').value;
+            if (!name || !weight) return alert('名前と体重を入れてね！');
+
+            await addDoc(collection(db, "diet_logs"), {
+                name: name,
+                weight: parseFloat(weight),
+                timestamp: serverTimestamp()
+            });
+            document.getElementById('weight').value = '';
+        };
+
+        // 2. データをリアルタイムで受け取る魔法（ここが共有のキモ！）
+        const q = query(collection(db, "diet_logs"), orderBy("timestamp", "desc"));
+        onSnapshot(q, (snapshot) => {
+            const list = document.getElementById('log-list');
+            list.innerHTML = '';
+            
+            // 投稿数に応じて自分のアバターを進化させる（遊び心）
+            const count = snapshot.size;
+            const avatar = count > 10 ? '🐓' : (count > 5 ? '🐥' : '🥚');
+            document.getElementById('my-avatar').innerText = avatar;
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.className = 'log-item';
+                div.innerHTML = `<span class="name">${data.name}さん</span> <span>${data.weight}kg</span>`;
+                list.appendChild(div);
+            });
+        });
+
+        // PWAの裏方
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
         }
-
-        function saveData() {
-            const weight = document.getElementById('weight').value;
-            if (!weight) return;
-            const data = JSON.parse(localStorage.getItem('diet_logs') || '[]');
-            data.push({ date: new Date().toLocaleDateString(), weight: parseFloat(weight) });
-            localStorage.setItem('diet_logs', JSON.stringify(data));
-            location.reload();
-        }
-
-        const logs = JSON.parse(localStorage.getItem('diet_logs') || '[]');
-        const ctx = document.getElementById('weightChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: logs.map(l => l.date),
-                datasets: [{ label: '体重 (kg)', data: logs.map(l => l.weight), borderColor: '#4CAF50', tension: 0.1 }]
-            }
-        });
     </script>
 </body>
 </html>
